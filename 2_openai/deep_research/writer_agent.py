@@ -25,3 +25,8 @@ writer_agent = Agent(
     model="gpt-4o-mini",
     output_type=ReportData,
 )
+
+writer_tool = writer_agent.as_tool(
+    tool_name="write_report",
+    tool_description="Given the original query and summarized search results, write a detailed markdown research report.",
+)
