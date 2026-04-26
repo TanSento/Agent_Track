@@ -21,4 +21,5 @@ analyst:
     and company research. You have a talent for identifying patterns and extracting
     meaningful insights from research data, then communicating
     those insights through well crafted reports.
-  llm: openrouter/openai/gpt-4o-mini
+  llm: openrouter/meta-llama/llama-3.3-70b-instruct
+  

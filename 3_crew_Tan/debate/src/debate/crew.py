@@ -10,6 +10,13 @@ class Debate():
     agents: list[BaseAgent]
     tasks: list[Task]
 
+    # @CrewBase automatically defaults to config/agents.yaml and config/tasks.yaml
+    # which is exactly where your files already live. The explicit declaration in 3_crew is redundant.
+    # You'd only need to add it if your config files were in a non-standard location
+
+    # agents_config = 'config/agents.yaml'
+    # tasks_config = 'config/tasks.yaml'
+
     @agent
     def debater(self) -> Agent:
         return Agent(config=self.agents_config['debater'], verbose=True)
