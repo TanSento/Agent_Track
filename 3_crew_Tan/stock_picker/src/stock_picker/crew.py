@@ -8,6 +8,7 @@ from .tools.push_tool import PushNotificationTool
 from crewai.memory import Memory  # import the Memory class
 
 
+# Read md files in docs folder to understand the workflow
 
 class TrendingCompany(BaseModel):
     """ A company that is trending in the news and attracting attention """

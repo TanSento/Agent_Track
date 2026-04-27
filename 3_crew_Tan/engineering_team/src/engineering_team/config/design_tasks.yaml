@@ -1,0 +1,23 @@
+design_task:
+  description: >
+    Analyse the high level requirements and design a complete multi-module Python system.
+    Break the system into well-defined modules, each with one primary class and a single clear responsibility.
+    For each module, identify its name, its primary class, what it does, and which other modules it depends on.
+    Here are the requirements: {requirements}
+    IMPORTANT: Output a JSON object matching this exact schema:
+    {
+      "system_overview": "high-level description of the full system",
+      "modules": [
+        {
+          "module_name": "filename.py",
+          "class_name": "ClassName",
+          "description": "what this module does",
+          "dependencies": ["other_module.py"]
+        }
+      ]
+    }
+  expected_output: >
+    A JSON object with system_overview (string) and modules (list), where each module has
+    module_name, class_name, description, and dependencies.
+  agent: engineering_lead
+  output_file: output/system_design.json

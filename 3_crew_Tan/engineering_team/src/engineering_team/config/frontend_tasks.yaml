@@ -1,0 +1,17 @@
+frontend_task:
+  description: >
+    Write a Gradio UI in app.py that demonstrates the complete backend system.
+    The UI should be in the same directory as the backend modules and import from each of them.
+    System overview: {system_overview}
+    Modules available: {module_list}
+    Full requirements: {requirements}
+    Here is the full source code of all backend modules for reference:
+    {modules_code}
+    Assume there is only 1 user. Keep the UI clean and modern — just a prototype or demo.
+    IMPORTANT: Output ONLY the raw Python code without any markdown formatting, code block delimiters, or backticks.
+  expected_output: >
+    A Gradio UI in app.py that imports from all backend modules and demonstrates the full system.
+    The file should be ready to run as-is in the same directory as the backend modules.
+    IMPORTANT: Output ONLY raw Python code — no markdown, no backticks, no code fences.
+  agent: frontend_engineer
+  output_file: output/app.py

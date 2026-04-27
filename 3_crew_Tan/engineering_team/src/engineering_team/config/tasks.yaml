@@ -1,0 +1,77 @@
+design_task:
+  description: >
+    Analyse the high level requirements and design a complete multi-module Python system.
+    Break the system into well-defined modules, each with one primary class and a single clear responsibility.
+    For each module, identify its name, its primary class, what it does, and which other modules it depends on.
+    Here are the requirements: {requirements}
+    IMPORTANT: Output a JSON object matching this exact schema:
+    {
+      "system_overview": "high-level description of the full system",
+      "modules": [
+        {
+          "module_name": "filename.py",
+          "class_name": "ClassName",
+          "description": "what this module does",
+          "dependencies": ["other_module.py"]
+        }
+      ]
+    }
+  expected_output: >
+    A JSON object with system_overview (string) and modules (list), where each module has
+    module_name, class_name, description, and dependencies.
+  agent: engineering_lead
+  output_file: output/system_design.json
+
+
+code_task:
+  description: >
+    Write the Python module {module_name} containing class {class_name} as one piece of a larger system.
+    Module description: {description}
+    Dependencies to import from: {dependencies}
+    Overall system context: {system_overview}
+    Full requirements: {requirements}
+    IMPORTANT: Output ONLY the raw Python code without any markdown formatting, code block delimiters, or backticks.
+    The output should be valid Python code that can be directly saved to a file and executed.
+  expected_output: >
+    A Python module named {module_name} implementing class {class_name}.
+    The code must correctly import from any listed dependencies.
+    IMPORTANT: Output ONLY raw Python code — no markdown, no backticks, no code fences.
+  agent: backend_engineer
+  output_file: output/{module_name}
+
+
+frontend_task:
+  description: >
+    Write a Gradio UI in app.py that demonstrates the complete backend system.
+    The UI should be in the same directory as the backend modules and import from each of them.
+    System overview: {system_overview}
+    Modules available: {module_list}
+    Full requirements: {requirements}
+    Here is the full source code of all backend modules for reference:
+    {modules_code}
+    Assume there is only 1 user. Keep the UI clean and modern — just a prototype or demo.
+    IMPORTANT: Output ONLY the raw Python code without any markdown formatting, code block delimiters, or backticks.
+  expected_output: >
+    A Gradio UI in app.py that imports from all backend modules and demonstrates the full system.
+    The file should be ready to run as-is in the same directory as the backend modules.
+    IMPORTANT: Output ONLY raw Python code — no markdown, no backticks, no code fences.
+  agent: frontend_engineer
+  output_file: output/app.py
+
+
+test_task:
+  description: >
+    Write unit tests for the backend module {module_name} containing class {class_name}.
+    Module description: {description}
+    Dependencies it imports from: {dependencies}
+    Overall system context: {system_overview}
+    Mock dependencies appropriately so tests are isolated.
+    Once written, run the tests using pytest and fix any failures before finishing.
+    IMPORTANT: Output ONLY the raw Python code without any markdown formatting, code block delimiters, or backticks.
+  expected_output: >
+    A test file named test_{module_name} that tests {module_name} thoroughly and passes when run.
+    IMPORTANT: Output ONLY raw Python code — no markdown, no backticks, no code fences.
+  agent: test_engineer
+  context:
+    - code_task
+  output_file: output/test_{module_name}
