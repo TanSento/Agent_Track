@@ -193,7 +193,6 @@ main.py
                      modules_code, requirements}
             output: output/app.py
 ```
-
 ---
 
 ## Verification Checklist
@@ -205,3 +204,4 @@ main.py
 5. `output/app.py` exists and imports from all generated modules
 6. Callback lines `[callback] syntax OK` appear for each generated file
 7. `uv run python output/app.py` launches the Gradio UI without import errors
+
