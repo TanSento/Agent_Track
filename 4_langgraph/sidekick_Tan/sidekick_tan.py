@@ -25,6 +25,7 @@ class State(TypedDict):
     feedback_on_work: Optional[str]
     success_criteria_met: bool
     user_input_needed: bool
+    task_plan: Optional[str]  # ordered subtask list from planner
 
 
 class EvaluatorOutput(BaseModel):
@@ -35,10 +36,17 @@ class EvaluatorOutput(BaseModel):
     )
 
 
+class PlannerOutput(BaseModel):
+    task_plan: str = Field(
+        description="An ordered, numbered list of concrete subtasks to complete the user's request. Each step should be specific and actionable."
+    )
+
+
 class Sidekick:
     def __init__(self):    # no async init because we don't need to await anything
         self.worker_llm_with_tools = None
         self.evaluator_llm_with_output = None
+        self.planner_llm_with_output = None
         self.tools = None
         self.llm_with_tools = None
         self.graph = None
@@ -58,8 +66,37 @@ class Sidekick:
         self.worker_llm_with_tools = worker_llm.bind_tools(self.tools)
         evaluator_llm = ChatOpenAI(model="openai/gpt-4o-mini", **openrouter_kwargs)
         self.evaluator_llm_with_output = evaluator_llm.with_structured_output(EvaluatorOutput)
+        planner_llm = ChatOpenAI(model="openai/gpt-4o-mini", **openrouter_kwargs)
+        self.planner_llm_with_output = planner_llm.with_structured_output(PlannerOutput)
         await self.build_graph()
 
+
+    def planner(self, state: State) -> Dict[str, Any]:
+        user_request = ""
+        for message in state["messages"]:
+            if isinstance(message, HumanMessage):
+                user_request = message.content
+                break
+
+        system_message = """You are a planning agent. Your job is to break down a user's request into a clear, ordered list of subtasks before any work begins.
+Each subtask should be concrete and specific. Order them so that data is gathered before it is used, scripts are run before summaries are written, and nothing is assumed without first being verified.
+When referring to file saving steps, use plain filenames like "results.txt" — do NOT prefix with "sandbox/" as the file tools are already scoped to the sandbox directory."""
+
+        user_message = f"""The user's request is:
+{user_request}
+
+The success criteria is:
+{state["success_criteria"]}
+
+Produce a numbered list of subtasks to complete this request in the correct order."""
+
+        planner_messages = [
+            SystemMessage(content=system_message),
+            HumanMessage(content=user_message),
+        ]
+
+        result = self.planner_llm_with_output.invoke(planner_messages)
+        return {"task_plan": result.task_plan}
 
     # worker node - uses tools to complete tasks
     def worker(self, state: State) -> Dict[str, Any]:  
@@ -67,6 +104,7 @@ class Sidekick:
     You keep working on a task until either you have a question or clarification for the user, or the success criteria is met.
     You have many tools to help you, including tools to browse the internet, navigating and retrieving web pages.
     You have a tool to run python code, but note that you would need to include a print() statement if you wanted to receive output.
+    When saving files, use plain filenames like "results.txt" or "script.py" — do NOT prefix with "sandbox/" as your file tools are already scoped to the sandbox directory.
     The current date and time is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
     This is the success criteria:
@@ -78,6 +116,13 @@ class Sidekick:
 
     If you've finished, reply with the final answer, and don't ask a question; simply reply with the answer.
     """
+
+        if state.get("task_plan"):
+            system_message += f"""
+
+You have been given the following execution plan. Follow this order strictly:
+{state["task_plan"]}
+"""
 
         if state.get("feedback_on_work"):
             system_message += f"""
@@ -179,15 +224,15 @@ class Sidekick:
             return "worker"
 
     async def build_graph(self):
-        # Set up Graph Builder with State
         graph_builder = StateGraph(State)
 
-        # Add nodes
+        graph_builder.add_node("planner", self.planner)
         graph_builder.add_node("worker", self.worker)
         graph_builder.add_node("tools", ToolNode(tools=self.tools))
         graph_builder.add_node("evaluator", self.evaluator)
 
-        # Add edges
+        graph_builder.add_edge(START, "planner")
+        graph_builder.add_edge("planner", "worker")
         graph_builder.add_conditional_edges(
             "worker", self.worker_router, {"tools": "tools", "evaluator": "evaluator"}
         )
@@ -195,13 +240,11 @@ class Sidekick:
         graph_builder.add_conditional_edges(
             "evaluator", self.route_based_on_evaluation, {"worker": "worker", "END": END}
         )
-        graph_builder.add_edge(START, "worker")
 
-        # Compile the graph
         self.graph = graph_builder.compile(checkpointer=self.memory)
 
     async def run_superstep(self, message, success_criteria, history):
-        config = {"configurable": {"thread_id": self.sidekick_id}}
+        config = {"configurable": {"thread_id": self.sidekick_id}, "recursion_limit": 50}
 
         state = {
             "messages": message,
@@ -209,6 +252,7 @@ class Sidekick:
             "feedback_on_work": None,
             "success_criteria_met": False,
             "user_input_needed": False,
+            "task_plan": None,
         }
         result = await self.graph.ainvoke(state, config=config)
         user = {"role": "user", "content": message}
