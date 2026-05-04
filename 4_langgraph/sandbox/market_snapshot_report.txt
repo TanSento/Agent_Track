@@ -1,0 +1,12 @@
+Market Snapshot Report (Top 10 Coins):
+
+1. Bitcoin (BTC) - $78,355.49
+2. Ethereum (ETH) - $2,308.71
+3. Tether (USDT) - $0.9998
+4. XRP (XRP) - $1.38
+5. BNB (BNB) - $617.15
+6. USDC (USDC) - $0.9997
+7. Solana (SOL) - $83.93
+8. TRON (TRX) - $0.3369
+9. Dogecoin (DOGE) - $0.1080
+10. Hyperliquid (HYPE) - $40.99

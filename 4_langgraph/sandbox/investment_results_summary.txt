@@ -1,0 +1,53 @@
+Investment Results Summary:
+
+1. Bitcoin:
+   - Entry Price: $78355.49
+   - Coins Held: 0.01276
+   - Value After 20% Pump: $949.22
+
+2. Ethereum:
+   - Entry Price: $2308.71
+   - Coins Held: 0.433
+   - Value After 20% Pump: $561.45
+
+3. Tether:
+   - Entry Price: $0.9998
+   - Coins Held: 1000.20
+   - Value After 20% Pump: $1200.24
+
+4. XRP:
+   - Entry Price: $1.38
+   - Coins Held: 724.64
+   - Value After 20% Pump: $868.11
+
+5. BNB:
+   - Entry Price: $617.15
+   - Coins Held: 1.62
+   - Value After 20% Pump: $1,214.87
+
+6. USDC:
+   - Entry Price: $0.9997
+   - Coins Held: 1000.30
+   - Value After 20% Pump: $1200.36
+
+7. Solana:
+   - Entry Price: $83.93
+   - Coins Held: 11.92
+   - Value After 20% Pump: $1,011.46
+
+8. TRON:
+   - Entry Price: $0.3369
+   - Coins Held: 2,964.91
+   - Value After 20% Pump: $715.01
+
+9. Dogecoin:
+   - Entry Price: $0.1080
+   - Coins Held: 9,259.26
+   - Value After 20% Pump: $1,111.15
+
+10. Hyperliquid:
+    - Entry Price: $40.99
+    - Coins Held: 24.43
+    - Value After 20% Pump: $1,163.73
+
+Total Value After 20% Pump: $6,186.51
