@@ -27,6 +27,7 @@ class State(TypedDict):
     user_input_needed: bool
     task_plan: Optional[str]  # ordered subtask list from planner
     clarification_question: Optional[str]  # set by clarifier if request is ambiguous
+    task_type: Optional[str]  # "research" | "coding" | "writing" | "general"
 
 
 class EvaluatorOutput(BaseModel):
@@ -40,6 +41,12 @@ class EvaluatorOutput(BaseModel):
 class PlannerOutput(BaseModel):
     task_plan: str = Field(
         description="An ordered, numbered list of concrete subtasks to complete the user's request. Each step should be specific and actionable."
+    )
+
+
+class TaskClassifierOutput(BaseModel):
+    task_type: str = Field(
+        description="The primary nature of the task. Must be one of: 'research' (web lookup, data gathering), 'coding' (write/run Python scripts), 'writing' (produce reports, summaries, documents), 'general' (mixed or unclear)."
     )
 
 
@@ -57,6 +64,7 @@ class Sidekick:
         self.worker_llm_with_tools = None
         self.evaluator_llm_with_output = None
         self.planner_llm_with_output = None
+        self.classifier_llm_with_output = None
         self.clarifier_llm_with_output = None
         self.tools = None
         self.llm_with_tools = None
@@ -79,6 +87,8 @@ class Sidekick:
         self.evaluator_llm_with_output = evaluator_llm.with_structured_output(EvaluatorOutput)
         planner_llm = ChatOpenAI(model="openai/gpt-4o-mini", **openrouter_kwargs)
         self.planner_llm_with_output = planner_llm.with_structured_output(PlannerOutput)
+        classifier_llm = ChatOpenAI(model="openai/gpt-4o-mini", **openrouter_kwargs)
+        self.classifier_llm_with_output = classifier_llm.with_structured_output(TaskClassifierOutput)
         clarifier_llm = ChatOpenAI(model="openai/gpt-4o-mini", **openrouter_kwargs)
         self.clarifier_llm_with_output = clarifier_llm.with_structured_output(ClarifierOutput)
         await self.build_graph()
@@ -149,9 +159,41 @@ class Sidekick:
         result = self.planner_llm_with_output.invoke(planner_messages)
         return {"task_plan": result.task_plan}
 
+    def task_classifier(self, state: State) -> Dict[str, Any]:
+        system_message = """You are a task classification agent. Given a task plan, classify the primary nature of the work into one of:
+                        - 'research': mainly web browsing, searching, gathering information
+                        - 'coding': mainly writing and running Python scripts
+                        - 'writing': mainly producing reports, summaries, or structured documents
+                        - 'general': a significant mix of the above"""
+
+        user_message = f"""Task plan:
+                        {state.get("task_plan", "")}
+
+                        Success criteria:
+                        {state["success_criteria"]}
+
+                        Classify the primary task type."""
+
+        classifier_messages = [
+            SystemMessage(content=system_message),
+            HumanMessage(content=user_message),
+        ]
+
+        result = self.classifier_llm_with_output.invoke(classifier_messages)
+        return {"task_type": result.task_type}
+
     # worker node - uses tools to complete tasks
-    def worker(self, state: State) -> Dict[str, Any]:  
-        system_message = f"""You are a helpful assistant that can use tools to complete tasks.
+    def worker(self, state: State) -> Dict[str, Any]:
+        task_type = state.get("task_type", "general")
+
+        specialist_context = {
+            "research": "You are a research specialist. Prioritise using web search and browser tools to gather accurate, up-to-date information. Always verify facts before reporting them.",
+            "coding": "You are a coding specialist. Write clean Python scripts, always run them using the Python REPL tool, and only report output that you have actually seen printed. Never assume what code will output — run it first. Always save the script itself to sandbox using the file writing tool. When you need to save output to a file, use print() in your script to capture the output, then use the file writing tool to save it — do not write files directly from inside the script.",
+            "writing": "You are a writing specialist. Produce well-structured, clear documents. Base all content strictly on information already gathered or computed — do not invent data.",
+            "general": "You are a helpful assistant that can use tools to complete tasks.",
+        }.get(task_type, "You are a helpful assistant that can use tools to complete tasks.")
+
+        system_message = f"""{specialist_context}
                             You keep working on a task until either you have a question or clarification for the user, or the success criteria is met.
                             You have many tools to help you, including tools to browse the internet, navigating and retrieving web pages.
                             You have a tool to run python code, but note that you would need to include a print() statement if you wanted to receive output.
@@ -278,6 +320,7 @@ class Sidekick:
 
         graph_builder.add_node("clarifier", self.clarifier)
         graph_builder.add_node("planner", self.planner)
+        graph_builder.add_node("task_classifier", self.task_classifier)
         graph_builder.add_node("worker", self.worker)
         graph_builder.add_node("tools", ToolNode(tools=self.tools))
         graph_builder.add_node("evaluator", self.evaluator)
@@ -286,7 +329,8 @@ class Sidekick:
         graph_builder.add_conditional_edges(
             "clarifier", self.clarifier_router, {"planner": "planner", "END": END}
         )
-        graph_builder.add_edge("planner", "worker")
+        graph_builder.add_edge("planner", "task_classifier")
+        graph_builder.add_edge("task_classifier", "worker")
         graph_builder.add_conditional_edges(
             "worker", self.worker_router, {"tools": "tools", "evaluator": "evaluator"}
         )
@@ -308,6 +352,7 @@ class Sidekick:
             "user_input_needed": False,
             "task_plan": None,
             "clarification_question": None,
+            "task_type": None,
         }
         result = await self.graph.ainvoke(state, config=config)
         user = {"role": "user", "content": message}

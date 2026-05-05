@@ -159,7 +159,7 @@ Send this request:
 
 Expected: The evaluator feedback message shows "Evaluator Feedback..." and the worker followed a plan that ran the script before writing the summary. Check sandbox for output files.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add 4_langgraph/sidekick_Tan/sidekick_tan.py
@@ -175,7 +175,7 @@ The clarifier runs before the planner. It checks whether the request is ambiguou
 **Files:**
 - Modify: `4_langgraph/sidekick_Tan/sidekick_tan.py`
 
-- [ ] **Step 1: Add `clarification_question` to State**
+- [x] **Step 1: Add `clarification_question` to State**
 
 Update `State`:
 
@@ -190,7 +190,7 @@ class State(TypedDict):
     clarification_question: Optional[str]  # set by clarifier if request is ambiguous
 ```
 
-- [ ] **Step 2: Add `ClarifierOutput` Pydantic model**
+- [x] **Step 2: Add `ClarifierOutput` Pydantic model**
 
 ```python
 class ClarifierOutput(BaseModel):
@@ -202,7 +202,7 @@ class ClarifierOutput(BaseModel):
     )
 ```
 
-- [ ] **Step 3: Add clarifier LLM to `__init__` and `setup`**
+- [x] **Step 3: Add clarifier LLM to `__init__` and `setup`**
 
 In `__init__`, add:
 ```python
@@ -215,7 +215,7 @@ clarifier_llm = ChatOpenAI(model="openai/gpt-4o-mini", **openrouter_kwargs)
 self.clarifier_llm_with_output = clarifier_llm.with_structured_output(ClarifierOutput)
 ```
 
-- [ ] **Step 4: Add `clarifier` node method**
+- [x] **Step 4: Add `clarifier` node method**
 
 Add before `planner`:
 
@@ -258,7 +258,7 @@ Decide: is this request clear enough to proceed, or is there one important clari
     return {"clarification_question": None}
 ```
 
-- [ ] **Step 5: Add `clarifier_router` method**
+- [x] **Step 5: Add `clarifier_router` method**
 
 ```python
 def clarifier_router(self, state: State) -> str:
@@ -267,7 +267,7 @@ def clarifier_router(self, state: State) -> str:
     return "planner"
 ```
 
-- [ ] **Step 6: Update `build_graph` to wire the clarifier**
+- [x] **Step 6: Update `build_graph` to wire the clarifier**
 
 ```python
 async def build_graph(self):
@@ -295,7 +295,7 @@ async def build_graph(self):
     self.graph = graph_builder.compile(checkpointer=self.memory)
 ```
 
-- [ ] **Step 7: Update `run_superstep` to include `clarification_question` in initial state**
+- [x] **Step 7: Update `run_superstep` to include `clarification_question` in initial state**
 
 ```python
 state = {
@@ -309,7 +309,7 @@ state = {
 }
 ```
 
-- [ ] **Step 8: Test manually**
+- [x] **Step 8: Test manually**
 
 Send a vague request:
 - Message: `Write me a report`
@@ -317,7 +317,7 @@ Send a vague request:
 
 Expected: The chat shows `Question: ...` asking what the report should be about. Then reply with a topic and hit Go again — the clarifier skips (question already asked), planner runs, worker executes.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add 4_langgraph/sidekick_Tan/sidekick_tan.py
