@@ -26,6 +26,7 @@ class State(TypedDict):
     success_criteria_met: bool
     user_input_needed: bool
     task_plan: Optional[str]  # ordered subtask list from planner
+    clarification_question: Optional[str]  # set by clarifier if request is ambiguous
 
 
 class EvaluatorOutput(BaseModel):
@@ -42,11 +43,21 @@ class PlannerOutput(BaseModel):
     )
 
 
+class ClarifierOutput(BaseModel):
+    needs_clarification: bool = Field(
+        description="True if the request is ambiguous enough that a clarifying question is needed before planning."
+    )
+    question: str = Field(
+        description="The single most important clarifying question to ask the user. Empty string if needs_clarification is False."
+    )
+
+
 class Sidekick:
     def __init__(self):    # no async init because we don't need to await anything
         self.worker_llm_with_tools = None
         self.evaluator_llm_with_output = None
         self.planner_llm_with_output = None
+        self.clarifier_llm_with_output = None
         self.tools = None
         self.llm_with_tools = None
         self.graph = None
@@ -68,8 +79,51 @@ class Sidekick:
         self.evaluator_llm_with_output = evaluator_llm.with_structured_output(EvaluatorOutput)
         planner_llm = ChatOpenAI(model="openai/gpt-4o-mini", **openrouter_kwargs)
         self.planner_llm_with_output = planner_llm.with_structured_output(PlannerOutput)
+        clarifier_llm = ChatOpenAI(model="openai/gpt-4o-mini", **openrouter_kwargs)
+        self.clarifier_llm_with_output = clarifier_llm.with_structured_output(ClarifierOutput)
         await self.build_graph()
 
+
+    def clarifier(self, state: State) -> Dict[str, Any]:
+        # Skip if a clarifying question was already asked in this conversation
+        for message in state["messages"]:
+            if isinstance(message, AIMessage) and message.content and message.content.startswith("Question:"):
+                return {"clarification_question": None}
+
+        user_request = ""
+        for message in state["messages"]:
+            if isinstance(message, HumanMessage):
+                user_request = message.content
+                break
+
+        system_message = """You are a clarification agent. 
+                        Your job is to decide whether a user's request is clear enough to act on, or whether one key question needs to be answered first.
+                        Only ask for clarification if the request is genuinely ambiguous and the answer would significantly change how the task is done.
+                        Do not ask unnecessary questions."""
+
+        user_message = f"""The user's request is: {user_request}
+                        The success criteria is: {state["success_criteria"]}.
+                        Decide: is this request clear enough to proceed, or is there one important clarifying question to ask first?"""
+
+        clarifier_messages = [
+            SystemMessage(content=system_message),
+            HumanMessage(content=user_message),
+        ]
+
+        result = self.clarifier_llm_with_output.invoke(clarifier_messages)
+
+        if result.needs_clarification:
+            return {
+                "clarification_question": result.question,
+                "user_input_needed": True,
+                "messages": [{"role": "assistant", "content": f"Question: {result.question}"}],
+            }
+        return {"clarification_question": None}
+
+    def clarifier_router(self, state: State) -> str:
+        if state.get("clarification_question"):
+            return "END"
+        return "planner"
 
     def planner(self, state: State) -> Dict[str, Any]:
         user_request = ""
@@ -79,16 +133,13 @@ class Sidekick:
                 break
 
         system_message = """You are a planning agent. Your job is to break down a user's request into a clear, ordered list of subtasks before any work begins.
-Each subtask should be concrete and specific. Order them so that data is gathered before it is used, scripts are run before summaries are written, and nothing is assumed without first being verified.
-When referring to file saving steps, use plain filenames like "results.txt" — do NOT prefix with "sandbox/" as the file tools are already scoped to the sandbox directory."""
+                            Each subtask should be concrete and specific.
+                            Order them so that data is gathered before it is used, scripts are run before summaries are written, and nothing is assumed without first being verified.
+                            When referring to file saving steps, use plain filenames like "results.txt" — do NOT prefix with "sandbox/" as the file tools are already scoped to the sandbox directory."""
 
-        user_message = f"""The user's request is:
-{user_request}
-
-The success criteria is:
-{state["success_criteria"]}
-
-Produce a numbered list of subtasks to complete this request in the correct order."""
+        user_message = f"""The user's request is: {user_request}
+                            The success criteria is: {state["success_criteria"]}
+                            Produce a numbered list of subtasks to complete this request in the correct order."""
 
         planner_messages = [
             SystemMessage(content=system_message),
@@ -101,35 +152,29 @@ Produce a numbered list of subtasks to complete this request in the correct orde
     # worker node - uses tools to complete tasks
     def worker(self, state: State) -> Dict[str, Any]:  
         system_message = f"""You are a helpful assistant that can use tools to complete tasks.
-    You keep working on a task until either you have a question or clarification for the user, or the success criteria is met.
-    You have many tools to help you, including tools to browse the internet, navigating and retrieving web pages.
-    You have a tool to run python code, but note that you would need to include a print() statement if you wanted to receive output.
-    When saving files, use plain filenames like "results.txt" or "script.py" — do NOT prefix with "sandbox/" as your file tools are already scoped to the sandbox directory.
-    The current date and time is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+                            You keep working on a task until either you have a question or clarification for the user, or the success criteria is met.
+                            You have many tools to help you, including tools to browse the internet, navigating and retrieving web pages.
+                            You have a tool to run python code, but note that you would need to include a print() statement if you wanted to receive output.
+                            When saving files, use plain filenames like "results.txt" or "script.py" — do NOT prefix with "sandbox/" as your file tools are already scoped to the sandbox directory.
+                            The current date and time is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
-    This is the success criteria:
-    {state["success_criteria"]}
-    You should reply either with a question for the user about this assignment, or with your final response.
-    If you have a question for the user, you need to reply by clearly stating your question. An example might be:
+                            This is the success criteria: {state["success_criteria"]}
+                            You should reply either with a question for the user about this assignment, or with your final response.
+                            If you have a question for the user, you need to reply by clearly stating your question. An example might be:
 
-    Question: please clarify whether you want a summary or a detailed answer
+                            Question: please clarify whether you want a summary or a detailed answer
 
-    If you've finished, reply with the final answer, and don't ask a question; simply reply with the answer.
-    """
+                            If you've finished, reply with the final answer, and don't ask a question; simply reply with the answer.
+                            """
 
         if state.get("task_plan"):
-            system_message += f"""
-
-You have been given the following execution plan. Follow this order strictly:
-{state["task_plan"]}
-"""
+            system_message += f""" You have been given the following execution plan. Follow this order strictly: {state["task_plan"]}"""
 
         if state.get("feedback_on_work"):
             system_message += f"""
-    Previously you thought you completed the assignment, but your reply was rejected because the success criteria was not met.
-    Here is the feedback on why this was rejected:
-    {state["feedback_on_work"]}
-    With this feedback, please continue the assignment, ensuring that you meet the success criteria or have a question for the user."""
+                                Previously you thought you completed the assignment, but your reply was rejected because the success criteria was not met.
+                                Here is the feedback on why this was rejected: {state["feedback_on_work"]}
+                                With this feedback, please continue the assignment, ensuring that you meet the success criteria or have a question for the user."""
 
         # Add in the system message
 
@@ -173,27 +218,32 @@ You have been given the following execution plan. Follow this order strictly:
         last_response = state["messages"][-1].content
 
         system_message = """You are an evaluator that determines if a task has been completed successfully by an Assistant.
-    Assess the Assistant's last response based on the given criteria. Respond with your feedback, and with your decision on whether the success criteria has been met,
-    and whether more input is needed from the user."""
+                            Assess the Assistant's last response based on the given criteria.
+                            Respond with your feedback, and with your decision on whether the success criteria has been met,
+                            and whether more input is needed from the user."""
 
-        user_message = f"""You are evaluating a conversation between the User and Assistant. You decide what action to take based on the last response from the Assistant.
+        user_message = f"""You are evaluating a conversation between the User and Assistant.
+                        You decide what action to take based on the last response from the Assistant.
 
-    The entire conversation with the assistant, with the user's original request and all replies, is:
-    {self.format_conversation(state["messages"])}
+                        The entire conversation with the assistant, with the user's original request and all replies, is:
+                        {self.format_conversation(state["messages"])}
 
-    The success criteria for this assignment is:
-    {state["success_criteria"]}
+                        The success criteria for this assignment is:
+                        {state["success_criteria"]}
 
-    And the final response from the Assistant that you are evaluating is:
-    {last_response}
+                        And the final response from the Assistant that you are evaluating is:
+                        {last_response}
 
-    Respond with your feedback, and decide if the success criteria is met by this response.
-    Also, decide if more user input is required, either because the assistant has a question, needs clarification, or seems to be stuck and unable to answer without help.
+                        Respond with your feedback, and decide if the success criteria is met by this response.
+                        Also, decide if more user input is required, either because the assistant has a question,
+                        needs clarification, or seems to be stuck and unable to answer without help.
 
-    The Assistant has access to a tool to write files. If the Assistant says they have written a file, then you can assume they have done so.
-    Overall you should give the Assistant the benefit of the doubt if they say they've done something. But you should reject if you feel that more work should go into this.
+                        The Assistant has access to a tool to write files.
+                        If the Assistant says they have written a file, then you can assume they have done so.
+                        Overall you should give the Assistant the benefit of the doubt if they say they've done something.
+                        But you should reject if you feel that more work should go into this.
 
-    """
+                        """
         if state["feedback_on_work"]:
             user_message += f"Also, note that in a prior attempt from the Assistant, you provided this feedback: {state['feedback_on_work']}\n"
             user_message += "If you're seeing the Assistant repeating the same mistakes, then consider responding that user input is required."
@@ -226,12 +276,16 @@ You have been given the following execution plan. Follow this order strictly:
     async def build_graph(self):
         graph_builder = StateGraph(State)
 
+        graph_builder.add_node("clarifier", self.clarifier)
         graph_builder.add_node("planner", self.planner)
         graph_builder.add_node("worker", self.worker)
         graph_builder.add_node("tools", ToolNode(tools=self.tools))
         graph_builder.add_node("evaluator", self.evaluator)
 
-        graph_builder.add_edge(START, "planner")
+        graph_builder.add_edge(START, "clarifier")
+        graph_builder.add_conditional_edges(
+            "clarifier", self.clarifier_router, {"planner": "planner", "END": END}
+        )
         graph_builder.add_edge("planner", "worker")
         graph_builder.add_conditional_edges(
             "worker", self.worker_router, {"tools": "tools", "evaluator": "evaluator"}
@@ -253,6 +307,7 @@ You have been given the following execution plan. Follow this order strictly:
             "success_criteria_met": False,
             "user_input_needed": False,
             "task_plan": None,
+            "clarification_question": None,
         }
         result = await self.graph.ainvoke(state, config=config)
         user = {"role": "user", "content": message}
