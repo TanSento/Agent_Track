@@ -28,6 +28,7 @@ class State(TypedDict):
     task_plan: Optional[str]  # ordered subtask list from planner
     clarification_question: Optional[str]  # set by clarifier if request is ambiguous
     task_type: Optional[str]  # "research" | "coding" | "writing" | "general"
+    verification_feedback: Optional[str]  # set by verifier if issues found
 
 
 class EvaluatorOutput(BaseModel):
@@ -41,6 +42,15 @@ class EvaluatorOutput(BaseModel):
 class PlannerOutput(BaseModel):
     task_plan: str = Field(
         description="An ordered, numbered list of concrete subtasks to complete the user's request. Each step should be specific and actionable."
+    )
+
+
+class VerifierOutput(BaseModel):
+    issues_found: bool = Field(
+        description="True if the worker's response contains inconsistencies, fabricated data, or claims that contradict the conversation history."
+    )
+    issues: str = Field(
+        description="Description of the specific issues found. Empty string if issues_found is False."
     )
 
 
@@ -66,6 +76,7 @@ class Sidekick:
         self.planner_llm_with_output = None
         self.classifier_llm_with_output = None
         self.clarifier_llm_with_output = None
+        self.verifier_llm_with_output = None
         self.tools = None
         self.llm_with_tools = None
         self.graph = None
@@ -91,6 +102,8 @@ class Sidekick:
         self.classifier_llm_with_output = classifier_llm.with_structured_output(TaskClassifierOutput)
         clarifier_llm = ChatOpenAI(model="openai/gpt-4o-mini", **openrouter_kwargs)
         self.clarifier_llm_with_output = clarifier_llm.with_structured_output(ClarifierOutput)
+        verifier_llm = ChatOpenAI(model="openai/gpt-4o-mini", **openrouter_kwargs)
+        self.verifier_llm_with_output = verifier_llm.with_structured_output(VerifierOutput)
         await self.build_graph()
 
 
@@ -218,6 +231,12 @@ class Sidekick:
                                 Here is the feedback on why this was rejected: {state["feedback_on_work"]}
                                 With this feedback, please continue the assignment, ensuring that you meet the success criteria or have a question for the user."""
 
+        if state.get("verification_feedback"):
+            system_message += f"""
+                                A verification check on your previous response found the following issues:
+                                {state["verification_feedback"]}
+                                Please correct these issues in your next response."""
+
         # Add in the system message
 
         found_system_message = False
@@ -244,7 +263,44 @@ class Sidekick:
         if hasattr(last_message, "tool_calls") and last_message.tool_calls:
             return "tools"
         else:
-            return "evaluator"
+            return "verifier"
+
+    def verifier(self, state: State) -> Dict[str, Any]:
+        last_response = state["messages"][-1].content
+
+        system_message = """You are a verification agent. Your job is to catch inconsistencies in the worker's response before it reaches the evaluator.
+
+                        Look for:
+                        - Numbers or data in summaries that don't match what the code or logic in the conversation would actually produce
+                        - Claims that a file was written or a script was run, when no tool call evidence exists in the conversation
+                        - Summaries that contradict tool outputs visible in the conversation history
+
+                        Be precise — only flag clear, specific inconsistencies. Do not flag things that are simply unverifiable."""
+
+        user_message = f"""Here is the full conversation history:
+                        {self.format_conversation(state["messages"])}
+
+                        The worker's final response to verify is:
+                        {last_response}
+
+                        Check for internal inconsistencies or fabricated data."""
+
+        verifier_messages = [
+            SystemMessage(content=system_message),
+            HumanMessage(content=user_message),
+        ]
+
+        result = self.verifier_llm_with_output.invoke(verifier_messages)
+
+        if result.issues_found:
+            return {
+                "verification_feedback": result.issues,
+                "messages": [{"role": "assistant", "content": f"Verification issues found: {result.issues}"}],
+            }
+        return {"verification_feedback": None}
+
+    def verifier_router(self, state: State) -> str:
+        return "evaluator"
 
     def format_conversation(self, messages: List[Any]) -> str:
         conversation = "Conversation history:\n\n"
@@ -323,6 +379,7 @@ class Sidekick:
         graph_builder.add_node("task_classifier", self.task_classifier)
         graph_builder.add_node("worker", self.worker)
         graph_builder.add_node("tools", ToolNode(tools=self.tools))
+        graph_builder.add_node("verifier", self.verifier)
         graph_builder.add_node("evaluator", self.evaluator)
 
         graph_builder.add_edge(START, "clarifier")
@@ -332,9 +389,12 @@ class Sidekick:
         graph_builder.add_edge("planner", "task_classifier")
         graph_builder.add_edge("task_classifier", "worker")
         graph_builder.add_conditional_edges(
-            "worker", self.worker_router, {"tools": "tools", "evaluator": "evaluator"}
+            "worker", self.worker_router, {"tools": "tools", "verifier": "verifier"}
         )
         graph_builder.add_edge("tools", "worker")
+        graph_builder.add_conditional_edges(
+            "verifier", self.verifier_router, {"worker": "worker", "evaluator": "evaluator"}
+        )
         graph_builder.add_conditional_edges(
             "evaluator", self.route_based_on_evaluation, {"worker": "worker", "END": END}
         )
@@ -353,6 +413,7 @@ class Sidekick:
             "task_plan": None,
             "clarification_question": None,
             "task_type": None,
+            "verification_feedback": None,
         }
         result = await self.graph.ainvoke(state, config=config)
         user = {"role": "user", "content": message}
