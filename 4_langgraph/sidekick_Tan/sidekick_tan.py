@@ -10,7 +10,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from typing import List, Any, Optional, Dict
 from pydantic import BaseModel, Field
-from sidekick_tools_tan import playwright_tools, other_tools
+from sidekick_tools_tan import playwright_tools, other_tools, read_sandbox_files, run_sandbox_script
 import uuid
 import asyncio
 from datetime import datetime
@@ -210,7 +210,7 @@ class Sidekick:
                             You keep working on a task until either you have a question or clarification for the user, or the success criteria is met.
                             You have many tools to help you, including tools to browse the internet, navigating and retrieving web pages.
                             You have a tool to run python code, but note that you would need to include a print() statement if you wanted to receive output.
-                            When saving files, use plain filenames like "results.txt" or "script.py" — do NOT prefix with "sandbox/" as your file tools are already scoped to the sandbox directory.
+                            When saving files, use descriptive, task-specific filenames (e.g. "bitcoin_summary.txt", "fibonacci_script.py") — do NOT use generic names like "results.txt" or "script.py", and do NOT prefix with "sandbox/" as your file tools are already scoped to the sandbox directory.
                             The current date and time is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
                             This is the success criteria: {state["success_criteria"]}
@@ -267,15 +267,27 @@ class Sidekick:
 
     def verifier(self, state: State) -> Dict[str, Any]:
         last_response = state["messages"][-1].content
+        sandbox_summary = read_sandbox_files()
+
+        # Run any Python scripts found in sandbox to get their actual output
+        script_outputs = []
+        sandbox_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sandbox")
+        for filename in os.listdir(sandbox_path):
+            if filename.endswith(".py") and os.path.isfile(os.path.join(sandbox_path, filename)):
+                output = run_sandbox_script(filename)
+                script_outputs.append(f"--- {filename} output ---\n{output}")
+        script_output_summary = "\n\n".join(script_outputs) if script_outputs else "No Python scripts in sandbox."
 
         system_message = """You are a verification agent. Your job is to catch inconsistencies in the worker's response before it reaches the evaluator.
 
-                        Look for:
-                        - Numbers or data in summaries that don't match what the code or logic in the conversation would actually produce
-                        - Claims that a file was written or a script was run, when no tool call evidence exists in the conversation
-                        - Summaries that contradict tool outputs visible in the conversation history
+                        You have access to the actual contents of all files in the sandbox, and the real stdout output from running any Python scripts.
 
-                        Be precise — only flag clear, specific inconsistencies. Do not flag things that are simply unverifiable."""
+                        Look for:
+                        - Worker claims a file was saved, but it does not exist in the sandbox file list
+                        - Numbers or data in the worker's summary or results file that don't match the actual script output
+                        - Claims that a script produced certain results, but the actual script output shows different values
+
+                        Be precise — only flag clear, specific inconsistencies backed by the sandbox contents or script output. Do not flag things that are unverifiable."""
 
         user_message = f"""Here is the full conversation history:
                         {self.format_conversation(state["messages"])}
@@ -283,7 +295,13 @@ class Sidekick:
                         The worker's final response to verify is:
                         {last_response}
 
-                        Check for internal inconsistencies or fabricated data."""
+                        Here are the actual contents of all files currently in sandbox:
+                        {sandbox_summary}
+
+                        Here is the actual stdout output from running each Python script in sandbox:
+                        {script_output_summary}
+
+                        Check whether the worker's claims and any results files match the actual script output."""
 
         verifier_messages = [
             SystemMessage(content=system_message),
