@@ -1,0 +1,21 @@
+Investment Results Summary:
+
+1. Units Bought:
+   - Bitcoin: 0.0062
+   - Ethereum: 0.2104
+   - Solana: 5.8914
+
+2. Value After 15% Pump:
+   - Bitcoin: $575.00
+   - Ethereum: $575.00
+   - Solana: $575.00
+
+3. Value After 40% Dump:
+   - Bitcoin: $300.00
+   - Ethereum: $300.00
+   - Solana: $300.00
+
+4. Net Difference:
+   - Bitcoin: $275.00
+   - Ethereum: $275.00
+   - Solana: $275.00

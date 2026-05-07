@@ -1,36 +1,36 @@
-# Investment simulation script
+# Cryptocurrency Investment Simulation
 
-total_investment = 1000  # total investment amount in USD
+# Current prices of cryptocurrencies
+bitcoin_price = 80957.16  # in USD
+ethereum_price = 2376.64  # in USD
+solana_price = 84.87  # in USD
 
-# Top 10 coins and their prices
-coins = {
-    'Bitcoin': 78355.49,
-    'Ethereum': 2308.71,
-    'Tether': 0.9998,
-    'XRP': 1.38,
-    'BNB': 617.15,
-    'USDC': 0.9997,
-    'Solana': 83.93,
-    'TRON': 0.3369,
-    'Dogecoin': 0.1080,
-    'Hyperliquid': 40.99
-}
+# Investment amount
+total_investment = 1500
+amount_per_coin = total_investment / 3
 
-# Split investment equally
-investment_per_coin = total_investment / len(coins)
+# Calculate how many units of each coin can be bought
+bitcoin_units = amount_per_coin / bitcoin_price
+ethereum_units = amount_per_coin / ethereum_price
+solana_units = amount_per_coin / solana_price
 
-# Simulation results
-results = []
-for coin, price in coins.items():
-    coins_held = investment_per_coin / price  # coins purchased
-    value_after_pump = coins_held * price * 1.2  # assuming a 20% increase
-    results.append({
-        'Coin': coin,
-        'Entry Price': price,
-        'Coins Held': coins_held,
-        'Value After 20% Pump': value_after_pump
-    })
+# Calculate values after a 15% pump
+bitcoin_value_pump = bitcoin_units * bitcoin_price * 1.15
+ethereum_value_pump = ethereum_units * ethereum_price * 1.15
+solana_value_pump = solana_units * solana_price * 1.15
 
-# Output results
-for result in results:
-    print(result)
+# Calculate values after a 40% dump
+bitcoin_value_dump = bitcoin_units * bitcoin_price * 0.60
+ethereum_value_dump = ethereum_units * ethereum_price * 0.60
+solana_value_dump = solana_units * solana_price * 0.60
+
+# Calculate net differences
+bitcoin_net_difference = bitcoin_value_pump - bitcoin_value_dump
+ethereum_net_difference = ethereum_value_pump - ethereum_value_dump
+solana_net_difference = solana_value_pump - solana_value_dump
+
+# Print results
+print(bitcoin_units, ethereum_units, solana_units)
+print(bitcoin_value_pump, ethereum_value_pump, solana_value_pump)
+print(bitcoin_value_dump, ethereum_value_dump, solana_value_dump)
+print(bitcoin_net_difference, ethereum_net_difference, solana_net_difference)
