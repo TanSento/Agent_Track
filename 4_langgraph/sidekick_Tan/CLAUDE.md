@@ -38,6 +38,8 @@ worker (specialist prompt based on task_type)
   ▼
 verifier (reads sandbox files + runs .py scripts to get real stdout)
   │
+  ├──(issues found?)──▶ worker (retry with verification_feedback)
+  │
   ▼
 evaluator ──(criteria not met?)──▶ worker (retry with feedback)
   │ (criteria met or user input needed)
@@ -63,7 +65,7 @@ END
 - **Clarifier loop prevention** — checks message history for prior `Question:` messages instead of relying on state fields (which reset between `run_superstep` calls).
 - **Coding specialist** — instructs worker to use `print()` for output and the file writing tool to save results, not `open()` inside scripts (avoids REPL working directory mismatch).
 - **Verifier ground truth** — verifier calls `read_sandbox_files()` and `run_sandbox_script()` directly (not via LLM tool call) to get real file contents and actual script stdout before asking LLM to compare against worker claims.
-- **Verifier router** — always routes to evaluator; verifier never retries worker directly to avoid recursion loops.
+- **Verifier router** — routes directly back to worker when `verification_feedback` is set (issues found), bypassing evaluator; routes to evaluator only when sandbox checks pass. This prevents the evaluator's leniency from swallowing verified failures.
 - **Recursion limit** is set to 50 in `run_superstep` config.
 
 ## Tools Available to the Agent

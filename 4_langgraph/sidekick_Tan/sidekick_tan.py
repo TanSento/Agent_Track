@@ -318,6 +318,8 @@ class Sidekick:
         return {"verification_feedback": None}
 
     def verifier_router(self, state: State) -> str:
+        if state.get("verification_feedback"):
+            return "worker"
         return "evaluator"
 
     def format_conversation(self, messages: List[Any]) -> str:
