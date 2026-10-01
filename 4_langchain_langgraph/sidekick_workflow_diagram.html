@@ -1,0 +1,509 @@
+<title>Sidekick Workflow</title>
+<style>
+  :root {
+    --paper: #F1F0EC;
+    --panel: #FFFFFF;
+    --ink: #1A1D1F;
+    --muted: #5B6066;
+    --border: #D9D7D0;
+    --accent: #0B7A72;
+    --accent-soft: #E1F1EF;
+    --accent-ink: #075B55;
+    --line: #4B5157;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #14171A;
+      --panel: #1C2023;
+      --ink: #ECEEEE;
+      --muted: #9BA1A6;
+      --border: #2E3336;
+      --accent: #4FD9CB;
+      --accent-soft: rgba(79, 217, 203, 0.14);
+      --accent-ink: #8FF0E4;
+      --line: #B7BCC0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #14171A;
+    --panel: #1C2023;
+    --ink: #ECEEEE;
+    --muted: #9BA1A6;
+    --border: #2E3336;
+    --accent: #4FD9CB;
+    --accent-soft: rgba(79, 217, 203, 0.14);
+    --accent-ink: #8FF0E4;
+    --line: #B7BCC0;
+  }
+  :root[data-theme="light"] {
+    --paper: #F1F0EC;
+    --panel: #FFFFFF;
+    --ink: #1A1D1F;
+    --muted: #5B6066;
+    --border: #D9D7D0;
+    --accent: #0B7A72;
+    --accent-soft: #E1F1EF;
+    --accent-ink: #075B55;
+    --line: #4B5157;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+  }
+
+  .page {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 56px 24px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .eyebrow::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+  }
+
+  h1 {
+    font-size: clamp(1.7rem, 2.6vw, 2.15rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 1rem;
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  .filechip {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 6px;
+    padding: 3px 9px;
+    width: fit-content;
+  }
+
+  figure {
+    margin: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  .diagram-scroll {
+    overflow-x: auto;
+  }
+
+  .diagram-scroll svg {
+    display: block;
+    width: 100%;
+    min-width: 760px;
+    height: auto;
+  }
+
+  figcaption {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-top: 12px;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+
+  .legend li {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .legend ul { display: contents; }
+
+  .swatch { display: inline-block; width: 22px; height: 0; border-top: 2px solid var(--line); }
+  .swatch.dashed { border-top: 2px dashed var(--line); }
+  .swatch.diamond {
+    width: 11px; height: 11px; border: 2px solid var(--accent);
+    transform: rotate(45deg); border-radius: 2px; background: var(--accent-soft);
+  }
+
+  section.explain h2 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0 0 14px;
+    letter-spacing: -0.005em;
+  }
+
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .badge {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: var(--ink);
+    background: var(--panel);
+  }
+
+  .step.decision .badge {
+    border-color: var(--accent);
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+  }
+
+  .step .body { padding-top: 2px; }
+
+  .step .label {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 0.92rem;
+    margin: 0 0 4px;
+  }
+
+  .step p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    max-width: 68ch;
+  }
+
+  .step code {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    padding: 0.05em 0.35em;
+    border-radius: 4px;
+  }
+
+  .subgroup-label {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 18px 0 4px;
+  }
+
+  footer {
+    color: var(--muted);
+    font-size: 0.82rem;
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+  }
+</style>
+
+<div class="page">
+
+  <header>
+    <span class="eyebrow">Architecture diagram</span>
+    <h1>The Sidekick worker/evaluator loop</h1>
+    <p class="subtitle">
+      One call to <code style="font-family:var(--mono)">run_turn()</code> and everything that can happen inside it:
+      the worker streams, an independent evaluator grades the result against the user's success criteria,
+      and two separate paths can suspend the loop — a human-approval pause and an automatic retry.
+    </p>
+    <span class="filechip">4_langchain_langgraph/sidekick.py</span>
+  </header>
+
+  <figure>
+    <div class="diagram-scroll">
+      <svg viewBox="0 0 1160 870" role="img" aria-label="Flowchart of the Sidekick._advance loop: a user message enters the worker agent, which either pauses for human approval on sensitive tool calls and resumes on approval, or produces a reply that an evaluator LLM checks against the success criteria, looping back with feedback up to three attempts before returning the final answer to the user.">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"></path>
+          </marker>
+        </defs>
+
+        <g font-family="var(--sans)" fill="var(--ink)">
+
+          <!-- Start pill -->
+          <rect x="250" y="30" width="420" height="44" rx="22" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3 4"></rect>
+          <text x="460" y="57" text-anchor="middle" font-family="var(--mono)" font-size="13">1 · run_turn(message, success_criteria)</text>
+
+          <line x1="460" y1="74" x2="460" y2="264" stroke="var(--line)" stroke-width="1.6" marker-end="url(#arrow)" opacity="0"></line>
+          <line x1="460" y1="74" x2="460" y2="104" stroke="var(--line)" stroke-width="1.6" marker-end="url(#arrow)"></line>
+
+          <!-- Worker box -->
+          <rect x="280" y="104" width="360" height="130" rx="12" fill="var(--panel)" stroke="var(--border)" stroke-width="1.5"></rect>
+          <circle cx="295" cy="117" r="13" fill="var(--panel)" stroke="var(--border)" stroke-width="1.5"></circle>
+          <text x="295" y="121.5" text-anchor="middle" font-family="var(--mono)" font-weight="700" font-size="12">2</text>
+
+          <text x="460" y="132" text-anchor="middle" font-family="var(--mono)" font-weight="700" font-size="16">Worker.astream(...)</text>
+          <text x="460" y="155" text-anchor="middle" font-size="12.5" fill="var(--muted)">create_agent · gpt-5.4-mini · checkpointer = InMemorySaver</text>
+          <line x1="310" y1="165" x2="610" y2="165" stroke="var(--border)"></line>
+          <text x="460" y="182" text-anchor="middle" font-size="12.5" fill="var(--muted)">middleware:</text>
+          <text x="460" y="200" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="var(--muted)">TodoList · PII(email) · PII(card, results) · CallLimit(30)</text>
+          <text x="460" y="218" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="var(--muted)">HumanInTheLoop(push, help) · TolerateToolErrors</text>
+
+          <line x1="460" y1="234" x2="460" y2="264" stroke="var(--line)" stroke-width="1.6" marker-end="url(#arrow)"></line>
+
+          <!-- Diamond 3: interrupted? -->
+          <polygon points="460,266 535,314 460,362 385,314" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"></polygon>
+          <circle cx="400" cy="278" r="13" fill="var(--panel)" stroke="var(--accent)" stroke-width="1.5"></circle>
+          <text x="400" y="282.5" text-anchor="middle" font-family="var(--mono)" font-weight="700" font-size="12" fill="var(--accent-ink)">3</text>
+          <text x="460" y="319" text-anchor="middle" font-weight="700" font-size="15">interrupted?</text>
+
+          <!-- NO -> Evaluator -->
+          <line x1="460" y1="362" x2="460" y2="396" stroke="var(--line)" stroke-width="1.6" marker-end="url(#arrow)"></line>
+          <text x="474" y="384" font-size="12" font-weight="700" fill="var(--muted)">no</text>
+
+          <!-- YES -> Paused -->
+          <line x1="535" y1="314" x2="830" y2="314" stroke="var(--line)" stroke-width="1.6" marker-end="url(#arrow)"></line>
+          <text x="560" y="304" font-size="12" font-weight="700" fill="var(--muted)">yes</text>
+
+          <!-- Paused box -->
+          <rect x="830" y="284" width="260" height="60" rx="10" fill="var(--panel)" stroke="var(--border)" stroke-width="1.5"></rect>
+          <circle cx="844" cy="296" r="13" fill="var(--panel)" stroke="var(--border)" stroke-width="1.5"></circle>
+          <text x="844" y="300.5" text-anchor="middle" font-family="var(--mono)" font-weight="700" font-size="12">A</text>
+          <text x="960" y="308" text-anchor="middle" font-weight="700" font-size="16">Paused</text>
+          <text x="960" y="328" text-anchor="middle" font-size="11" fill="var(--muted)">returns action_requests to user</text>
+
+          <!-- dashed: Paused -> User chip -->
+          <line x1="960" y1="344" x2="960" y2="378" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"></line>
+
+          <!-- User chip -->
+          <rect x="835" y="382" width="250" height="44" rx="22" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3 4"></rect>
+          <text x="960" y="409" text-anchor="middle" font-size="13">USER reviews &amp; approves</text>
+
+          <!-- dashed: User chip -> Resume -->
+          <line x1="960" y1="426" x2="960" y2="460" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"></line>
+
+          <!-- Resume box -->
+          <rect x="830" y="464" width="260" height="60" rx="10" fill="var(--panel)" stroke="var(--border)" stroke-width="1.5"></rect>
+          <circle cx="844" cy="476" r="13" fill="var(--panel)" stroke="var(--border)" stroke-width="1.5"></circle>
+          <text x="844" y="480.5" text-anchor="middle" font-family="var(--mono)" font-weight="700" font-size="12">B</text>
+          <text x="960" y="488" text-anchor="middle" font-weight="700" font-size="16" font-family="var(--mono)">resume()</text>
+          <text x="960" y="508" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--mono)">Command(resume=[approve]×N)</text>
+
+          <!-- right loop-back: Resume -> Worker right edge -->
+          <polyline points="830,494 700,494 700,169 646,169" fill="none" stroke="var(--line)" stroke-width="1.6" marker-end="url(#arrow)"></polyline>
+          <text x="700" y="370" text-anchor="middle" font-size="11" fill="var(--muted)" transform="rotate(-90 700 370)">resume() re-enters astream</text>
+
+          <!-- Evaluator box -->
+          <rect x="290" y="396" width="340" height="90" rx="10" fill="var(--panel)" stroke="var(--border)" stroke-width="1.5"></rect>
+          <circle cx="303" cy="409" r="13" fill="var(--panel)" stroke="var(--border)" stroke-width="1.5"></circle>
+          <text x="303" y="413.5" text-anchor="middle" font-family="var(--mono)" font-weight="700" font-size="12">4</text>
+          <text x="460" y="422" text-anchor="middle" font-weight="700" font-size="16">Evaluator judges</text>
+          <text x="460" y="444" text-anchor="middle" font-size="12.5" fill="var(--muted)">reply + tools_used (evidence) → verdict</text>
+          <text x="460" y="464" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--muted)">ChatOpenAI(gpt-5.4-mini).with_structured_output</text>
+
+          <line x1="460" y1="486" x2="460" y2="516" stroke="var(--line)" stroke-width="1.6" marker-end="url(#arrow)"></line>
+
+          <!-- Diamond 5: done? -->
+          <polygon points="460,516 550,566 460,616 370,566" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"></polygon>
+          <circle cx="384" cy="530" r="13" fill="var(--panel)" stroke="var(--accent)" stroke-width="1.5"></circle>
+          <text x="384" y="534.5" text-anchor="middle" font-family="var(--mono)" font-weight="700" font-size="12" fill="var(--accent-ink)">5</text>
+          <text x="460" y="571" text-anchor="middle" font-weight="700" font-size="15">done?</text>
+
+          <!-- side caption for diamond 5 -->
+          <text x="475" y="626" font-size="11.5" fill="var(--muted)">success_criteria_met, OR</text>
+          <text x="475" y="640" font-size="11.5" fill="var(--muted)">user_input_needed, OR</text>
+          <text x="475" y="654" font-size="11.5" fill="var(--muted)">attempts ≥ 3 (MAX_ATTEMPTS)</text>
+
+          <!-- NO -> Retry -->
+          <line x1="370" y1="566" x2="300" y2="566" stroke="var(--line)" stroke-width="1.6" marker-end="url(#arrow)"></line>
+          <text x="305" y="554" text-anchor="end" font-size="12" font-weight="700" fill="var(--muted)">no</text>
+
+          <!-- Retry box -->
+          <rect x="40" y="536" width="260" height="60" rx="10" fill="var(--panel)" stroke="var(--border)" stroke-width="1.5"></rect>
+          <circle cx="54" cy="548" r="13" fill="var(--panel)" stroke="var(--border)" stroke-width="1.5"></circle>
+          <text x="54" y="552.5" text-anchor="middle" font-family="var(--mono)" font-weight="700" font-size="12">6</text>
+          <text x="170" y="560" text-anchor="middle" font-weight="700" font-size="16">retry payload</text>
+          <text x="170" y="580" text-anchor="middle" font-size="11" fill="var(--muted)">feedback + attempts++ (&lt; 3)</text>
+
+          <!-- left loop-back: Retry -> Worker left edge -->
+          <polyline points="170,536 170,169 274,169" fill="none" stroke="var(--line)" stroke-width="1.6" marker-end="url(#arrow)"></polyline>
+          <text x="170" y="370" text-anchor="middle" font-size="11" fill="var(--muted)" transform="rotate(-90 170 370)">attempts++, retry re-enters astream</text>
+
+          <!-- YES -> Final -->
+          <line x1="460" y1="616" x2="460" y2="680" stroke="var(--line)" stroke-width="1.6" marker-end="url(#arrow)"></line>
+          <text x="474" y="664" font-size="12" font-weight="700" fill="var(--muted)">yes</text>
+
+          <!-- Final box -->
+          <rect x="280" y="680" width="360" height="90" rx="10" fill="var(--panel)" stroke="var(--border)" stroke-width="1.5"></rect>
+          <circle cx="293" cy="693" r="13" fill="var(--panel)" stroke="var(--border)" stroke-width="1.5"></circle>
+          <text x="293" y="697.5" text-anchor="middle" font-family="var(--mono)" font-weight="700" font-size="12">7</text>
+          <text x="460" y="706" text-anchor="middle" font-weight="700" font-size="16">Return to caller</text>
+          <text x="460" y="728" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="var(--muted)">history + [reply, "Evaluator: &lt;feedback&gt;"]</text>
+          <text x="460" y="748" text-anchor="middle" font-size="11.5" fill="var(--muted)">back in run_turn() — both messages reach the user</text>
+
+          <line x1="460" y1="770" x2="460" y2="800" stroke="var(--line)" stroke-width="1.6" marker-end="url(#arrow)"></line>
+
+          <!-- End pill -->
+          <rect x="250" y="800" width="420" height="40" rx="20" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3 4"></rect>
+          <text x="460" y="825" text-anchor="middle" font-size="13">USER receives the reply + evaluator feedback</text>
+
+        </g>
+      </svg>
+    </div>
+
+    <div class="legend">
+      <ul>
+        <li><span class="swatch"></span> solid — automatic (no human involved)</li>
+        <li><span class="swatch dashed"></span> dashed — waits on the human in chat</li>
+        <li><span class="swatch diamond"></span> accent diamond — a decision point</li>
+      </ul>
+    </div>
+
+    <figcaption>
+      One call to <code style="font-family:var(--mono)">_advance()</code> can loop through the worker
+      multiple times: automatically on a failed evaluation (left loop, up to <code style="font-family:var(--mono)">MAX_ATTEMPTS = 3</code>),
+      or after a human approves a paused action (right loop). Both loops re-enter the same
+      <code style="font-family:var(--mono)">astream</code> call on the same <code style="font-family:var(--mono)">thread_id</code>,
+      so the checkpointer keeps full state across every iteration.
+    </figcaption>
+  </figure>
+
+  <section class="explain">
+    <h2>What each step does</h2>
+    <div class="steps">
+
+      <div class="step">
+        <div class="badge">1</div>
+        <div class="body">
+          <p class="label">run_turn(message, success_criteria)</p>
+          <p>Entry point for a new user turn. Wraps the success criteria into the first user message, resets <code>attempts</code> and <code>todos</code>, and hands off to <code>_advance()</code>.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="badge">2</div>
+        <div class="body">
+          <p class="label">Worker.astream(...)</p>
+          <p>The <code>create_agent</code> graph streams its state. <code>TodoListMiddleware</code> tracks the plan shown to the UI; both <code>PIIMiddleware</code> instances redact emails and card numbers; <code>ModelCallLimitMiddleware</code> caps the run at 30 model calls; <code>TolerateToolErrors</code> turns a failing tool call into a message instead of a crash. <code>InMemorySaver</code> checkpoints everything under this Sidekick's <code>thread_id</code>.</p>
+        </div>
+      </div>
+
+      <div class="step decision">
+        <div class="badge">3</div>
+        <div class="body">
+          <p class="label">interrupted?</p>
+          <p>After the stream ends, <code>_advance()</code> checks the result for <code>__interrupt__</code> — raised by <code>HumanInTheLoopMiddleware</code> just before <code>send_push_notification</code> or <code>request_human_help</code> would actually run.</p>
+        </div>
+      </div>
+
+      <div class="subgroup-label">If interrupted — the approval side path</div>
+
+      <div class="step">
+        <div class="badge">A</div>
+        <div class="body">
+          <p class="label">Paused</p>
+          <p>The pending action count is stored, <code>self.paused = True</code>, and a "waiting for your approval" message returns to the caller immediately — the turn stops here rather than continuing.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="badge">B</div>
+        <div class="body">
+          <p class="label">resume()</p>
+          <p>Once the user approves, <code>resume()</code> sends <code>Command(resume={"decisions": [...]})</code> with one <code>{"type": "approve"}</code> per pending action, and <code>_advance()</code> re-enters the same <code>astream</code> loop.</p>
+        </div>
+      </div>
+
+      <div class="subgroup-label">If not interrupted — the evaluation path</div>
+
+      <div class="step">
+        <div class="badge">4</div>
+        <div class="body">
+          <p class="label">Evaluator judges</p>
+          <p>A second, smaller LLM call — not the worker — scores the reply against the success criteria, using the ordered list of tools actually called as evidence rather than trusting the worker's self-report.</p>
+        </div>
+      </div>
+
+      <div class="step decision">
+        <div class="badge">5</div>
+        <div class="body">
+          <p class="label">done?</p>
+          <p>The loop exits when the evaluator marks the criteria met, or the worker itself needs user input, or three attempts have been used — whichever comes first.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="badge">6</div>
+        <div class="body">
+          <p class="label">retry payload</p>
+          <p>Otherwise the evaluator's feedback is wrapped into a new user message and the worker tries again in the same thread, with <code>attempts</code> incremented.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="badge">7</div>
+        <div class="body">
+          <p class="label">Return to caller</p>
+          <p>The worker's final reply and the evaluator's feedback are both appended to the conversation history and handed back — <code>run_turn()</code> or <code>resume()</code> returns this list straight to the user.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    Source: <span class="filechip" style="display:inline;">4_langchain_langgraph/sidekick.py</span> — see <code style="font-family:var(--mono)">Sidekick._advance()</code> for the loop itself.
+  </footer>
+
+</div>

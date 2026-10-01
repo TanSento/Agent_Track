@@ -1,0 +1,24 @@
+- main [ref=e250] [box=0,306,400,676]:
+  - generic [ref=e251] [box=16,322,368,604]:
+    - generic [ref=e253] [box=16,322,368,427]:
+      - paragraph [ref=e254] [box=25,348,350,20]: Aw snap, no results.
+      - button "Clear all filters" [ref=e257] [box=127,376,145,32]
+    - generic [ref=e263] [box=16,773,368,129]:
+      - generic [ref=e264] [box=16,780,368,72]:
+        - link "About Google Travel" [ref=e265] [cursor=pointer] [box=42,784,58,32]:
+          - /url: https://about.google/?hl=en-US
+        - link "Privacy" [ref=e266] [cursor=pointer] [box=101,784,67,32]:
+          - /url: https://policies.google.com/privacy?hl=en-US
+        - link "Terms" [ref=e267] [cursor=pointer] [box=167,784,60,32]:
+          - /url: https://policies.google.com/terms?hl=en-US
+        - link "Join user studies" [ref=e268] [cursor=pointer] [box=228,784,130,32]:
+          - /url: https://google.qualtrics.com/jfe/form/SV_3NMIMtX0F2zkakR?reserved%3D1%26utm_source%3DFooter%2520link%26utm_medium%3Down_web%26%20utm_campaign%3DQ2%26productTag%3D0%26campaignDate%3DApril2020%26referral_code%3DUXbJ377133&Q_Language=en-US
+        - button "Report Illegal Content" [ref=e269] [cursor=pointer] [box=32,820,159,32]
+        - link "Feedback" [ref=e270] [cursor=pointer] [box=191,820,82,32]:
+          - /url: ./#0
+        - link "Help Center" [ref=e271] [cursor=pointer] [box=273,820,95,32]:
+          - /url: https://support.google.com/travel/?hl=en-US#topic=2475360
+      - paragraph [ref=e273] [box=32,862,336,40]:
+        - text: Displayed currencies may differ from the currencies used to purchase flights.
+        - link "Learn more about currencies" [ref=e274] [cursor=pointer] [box=245,884,73,17]:
+          - /url: https://www.google.com/googlefinance/disclaimer?hl=en-US&gl=AU
