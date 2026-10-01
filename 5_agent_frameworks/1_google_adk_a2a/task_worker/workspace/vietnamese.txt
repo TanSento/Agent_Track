@@ -1,0 +1,3 @@
+Chào mừng bạn gia nhập đội ngũ.
+
+Hôm nay chúng ta đang cùng nhau xây dựng một trợ lý ngôn ngữ nhỏ, từng bước một. Mỗi người hỗ trợ sẽ chọn một nhiệm vụ từ bảng công việc chung, thực hiện công việc một cách cẩn thận và đánh dấu là đã hoàn thành. Hãy đọc kỹ nhiệm vụ của bạn, dành thời gian và làm tốt nhất có thể.
